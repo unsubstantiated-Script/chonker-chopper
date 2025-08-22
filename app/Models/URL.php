@@ -27,11 +27,6 @@ class URL extends Model
         'short_url',
     ];
 
-    /**
-     * The analytics relationship.
-     * @var mixed $analytics
-     */
-    private mixed $analytics;
 
     /**
      * Define a one-to-many relationship with the URLAnalytics model.
@@ -49,17 +44,17 @@ class URL extends Model
      */
     public function getTotalClicksAttribute(): int
     {
-        return $this->analytics->sum('clicks');
+        return $this->analytics->count();
     }
 
     /**
      * Scope a query to filter results by a specific batch ID.
      *
      * @param Builder $query
-     * @param int $batchId
+     * @param string $batchId
      * @return Builder
      */
-    public function scopeByBatchId(Builder $query, int $batchId): Builder
+    public function scopeByBatchId(Builder $query, string $batchId): Builder
     {
         return $query->where('batch_id', $batchId);
     }

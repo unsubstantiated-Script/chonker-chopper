@@ -1,5 +1,8 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
+    "name": "chonker-chopper",
+    "version": "1.0.0",
+    "author": "Justin Fulton <jusfulton@gmail.com>",
     "private": true,
     "type": "module",
     "scripts": {

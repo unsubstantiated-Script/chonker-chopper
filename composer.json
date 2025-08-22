@@ -1,13 +1,19 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "chonker-chopper/chonker-chopper",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "A Laravel project for shortening URLs.",
     "keywords": [
         "laravel",
         "framework"
     ],
     "license": "MIT",
+    "authors": [
+        {
+            "name": "Justin Fulton",
+            "email": "jusfulton@gmail.com"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",

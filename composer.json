@@ -1,6 +1,7 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
     "name": "chonker-chopper/chonker-chopper",
+    "version": "1.1.0",
     "type": "project",
     "description": "A Laravel project for shortening URLs.",
     "keywords": [

@@ -31,41 +31,99 @@ class URLController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'original_url' => 'required|url|max:2048',
-        ]);
 
-        $url = URL::create([
-            'batch_id' => $this->getBatchId(),
-            'original_url' => $request->original_url,
-            'short_url' => $this->generateShortUrl(),
-        ]);
+        // Handle CSV file upload
+        if (!$request->hasFile('csv_file')) {
+            return redirect()->route('urls.upload')->with('error', 'Please upload a CSV file.');
+        }
+
+        $this->processCSVFile($request);
 
         return redirect()->route('urls.view')->with('success', 'URL shortened successfully!');
     }
 
+    private function processCSVFile(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+        ]);
+
+        $file = $request->file('csv_file');
+        $csvData = array_map('str_getcsv', file($file->getPathname()));
+        $urlsCreated = 0;
+
+        foreach ($csvData as $row) {
+            // Handle both formats: single URL or URL,description
+            $url = is_array($row) ? trim($row[0]) : trim($row);
+
+            // Skip empty rows or headers
+            if (empty($url) || $url === 'url' || !filter_var($url, FILTER_VALIDATE_URL)) {
+                continue;
+            }
+
+            URL::create([
+                'batch_id' => $this->getBatchId(),
+                'original_url' => $url,
+                'short_url' => $this->generateShortUrl(),
+            ]);
+
+            $urlsCreated++;
+        }
+
+        return redirect()->route('urls.view')->with('success', "Successfully shortened {$urlsCreated} URLs from CSV!");
+    }
+
+
     /**
-     * Display all URLs for the current batch.
+     * Display all URLs grouped by batch.
      *
      * @return View
      */
     public function index(): View
     {
-        $urls = URL::byBatchId($this->getBatchId())->get();
+        $urlBatches = URL::select('batch_id', 'created_at')
+            ->groupBy('batch_id', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($batch) {
+                return [
+                    'batch_id' => $batch->batch_id,
+                    'created_at' => $batch->created_at,
+                    'urls' => URL::where('batch_id', $batch->batch_id)->get(),
+                    'total_urls' => URL::where('batch_id', $batch->batch_id)->count()
+                ];
+            });
 
-        return view('urls.index', compact('urls'));
+        return view('urls.index', compact('urlBatches'));
     }
 
     /**
-     * Display analytics for all URLs.
+     * Display analytics for all URLs grouped by batch.
      *
      * @return View
      */
     public function analytics(): View
     {
-        $urls = URL::with('analytics')->byBatchId($this->getBatchId())->get();
+        $analyticsBatches = URL::select('batch_id', 'created_at')
+            ->groupBy('batch_id', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($batch) {
+                $urls = URL::with('analytics')->where('batch_id', $batch->batch_id)->get();
+                $totalClicks = $urls->sum(function ($url) {
+                    return $url->analytics->count();
+                });
 
-        return view('urls.analytics', compact('urls'));
+                return [
+                    'batch_id' => $batch->batch_id,
+                    'created_at' => $batch->created_at,
+                    'urls' => $urls,
+                    'total_urls' => $urls->count(),
+                    'total_clicks' => $totalClicks
+                ];
+            });
+
+        return view('urls.analytics', compact('analyticsBatches'));
     }
 
     /**
@@ -150,7 +208,7 @@ class URLController extends Controller
     private function getLocationFromIP(?string $ip): ?string
     {
         // This is a simplified version.
-        return $ip ? 'Unknown Location' : null;
+        return $ip ? 'Your Location' : null;
     }
 
 }

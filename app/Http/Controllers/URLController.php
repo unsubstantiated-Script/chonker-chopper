@@ -151,36 +151,18 @@ class URLController extends Controller
 
     }
 
-    /**
-     * Display details of a URL using the given short URL.
-     *
-     * @param string $shortUrl
-     * @return JsonResponse
-     */
-    public function show(string $shortUrl): JsonResponse
+    public function show(string $shortUrl)
     {
         $url = URL::where('short_url', $shortUrl)->first();
 
         if (!$url) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Short URL not found'
-            ], 404);
+            return response()->json(['message' => 'URL not found'], 404);
         }
 
         return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $url->id,
-                'batch_id' => $url->batch_id,
-                'original_url' => $url->original_url,
-                'short_url' => $url->short_url,
-                'created_at' => $url->created_at,
-                'updated_at' => $url->updated_at,
-                'click_count' => $url->analytics->count(),
-            ]
+            'data' => $url,
+            'status' => 'success'
         ]);
-
     }
 
     /**

@@ -11,10 +11,12 @@ Route::prefix('v1')->group(function () {
 
         // URL Operations
         Route::get('/', [URLController::class, 'index']);                     // GET /api/v1/urls - List URLs
-        Route::get('/{shortUrl}', [URLController::class, 'show']);           // GET /api/v1/urls/abc123 - Get url data on a single shortened URL
 
-        // Analytics Operations
+        // Analytics Operations (move these BEFORE the dynamic {shortUrl} route)
         Route::get('/analytics', [URLController::class, 'analytics']);        // GET /api/v1/urls/analytics - Get all analytics in batches
         Route::get('/{shortUrl}/analytics', [URLController::class, 'urlAnalytics']); // GET /api/v1/urls/my.short.url.com/analytics - Get analytics for a specific short URL
+
+        // Dynamic route MUST come last
+        Route::get('/{shortUrl}', [URLController::class, 'show']);           // GET /api/v1/urls/abc123 - Get url data on a single shortened URL
     });
 });

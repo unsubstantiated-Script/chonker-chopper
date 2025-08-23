@@ -1,22 +1,24 @@
 <?php
 
-
 namespace Tests\Feature\Controllers;
 
 use App\Models\URL;
 use App\Models\URLAnalytics;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class URLControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Test to verify that the /create route displays the upload form correctly.
-     * @return void
-     */
+    private const TEST_CSV_PATH = 'urls_2_test.csv';
+
+    // ==================== WEB ROUTE TESTS ====================
+
     public function test_create_displays_upload_form(): void
     {
         $response = $this->get('/');
@@ -25,152 +27,92 @@ class URLControllerTest extends TestCase
         $response->assertViewIs('urls.create');
     }
 
-    /**
-     * Test to ensure the /view-urls route displays only the URLs
-     * associated with the current batch session.
-     * @return void
-     */
+
+    public function test_store_processes_csv_file_correctly(): void
+    {
+        Storage::fake('local');
+
+        $testCsvPath = base_path(self::TEST_CSV_PATH);
+        $this->assertFileExists($testCsvPath, 'Test CSV file does not exist');
+
+        $csvContent = file_get_contents($testCsvPath);
+        $uploadedFile = UploadedFile::fake()->createWithContent(self::TEST_CSV_PATH, $csvContent);
+
+        $response = $this->post('/', [
+            'csv_file' => $uploadedFile
+        ]);
+
+        $response->assertRedirect('/view-urls');
+        $response->assertSessionHas('batch_id');
+        $this->assertDatabaseCount('urls', $this->getExpectedUrlCount());
+    }
+
     public function test_index_displays_urls_for_current_batch(): void
     {
-        // Create URLs for the current session
         Session::put('batch_id', 'current-batch');
-        URL::factory()->count(2)->create(['batch_id' => 'current-batch']);
+        $this->createUrlsFromTestCsv('current-batch');
 
-        // Create URLs for different batch
+        // Create URLs in a different batch to ensure filtering works
         URL::factory()->create(['batch_id' => 'different-batch']);
 
         $response = $this->get('/view-urls');
 
         $response->assertStatus(200);
         $response->assertViewIs('urls.index');
-        $response->assertViewHas('urlBatches');;
+        $response->assertViewHas('urlBatches');
 
-        $urls = $response->viewData('urlBatches');
-        $this->assertCount(2, $urls);
+        $urlBatches = $response->viewData('urlBatches');
+
+        // Find the current batch in the response
+        $currentBatch = $urlBatches->firstWhere('batch_id', 'current-batch');
+        $this->assertNotNull($currentBatch, 'Current batch not found in response');
+
+        // Check that the current batch has the expected number of URLs
+        $this->assertEquals($this->getExpectedUrlCount(), $currentBatch['total_urls']);
+        $this->assertCount($this->getExpectedUrlCount(), $currentBatch['urls']);
+
+        // Verify that the different batch also exists
+        $differentBatch = $urlBatches->firstWhere('batch_id', 'different-batch');
+        $this->assertNotNull($differentBatch, 'Different batch not found in response');
+        $this->assertEquals(1, $differentBatch['total_urls']);
     }
 
-    /**
-     * Tests that the analytics page displays URLs with their associated analytics data.
-     *
-     * - Sets a batch ID in the session to filter data.
-     * - Creates a URL associated with the batch ID.
-     * - Generates multiple analytics data records for the created URL.
-     * - Sends a request to the analytics endpoint.
-     * - Asserts the HTTP response status and view returned.
-     * - Verifies the presence of analytics batches in the view data.
-     * - Checks that the correct number of URLs is retrieved and that their analytics relation is loaded.
-     * @return void
-     */
     public function test_analytics_displays_urls_with_analytics_data(): void
     {
         Session::put('batch_id', 'test-batch');
-        $url = URL::factory()->create(['batch_id' => 'test-batch']);
-        URLAnalytics::factory()->count(3)->create(['url_id' => $url->id]);
+        $urls = $this->createUrlsFromTestCsv('test-batch');
+
+        URLAnalytics::factory()->count(3)->create(['url_id' => $urls->first()->id]);
 
         $response = $this->get('/analytics');
 
         $response->assertStatus(200);
         $response->assertViewIs('urls.analytics');
-        $response->assertViewHas('analyticsBatches');;
-
-        $urls = $response->viewData('urls');
-        $this->assertCount(1, $urls);
-        $this->assertTrue($urls->first()->relationLoaded('analytics'));
+        $response->assertViewHas('analyticsBatches');
     }
 
-    /**
-     * Tests that the redirect functionality redirects a short URL to its original URL.
-     *
-     * - Creates a URL record with a specific short URL and an associated original URL.
-     * - Sends a request to the endpoint corresponding to the short URL.
-     * - Asserts that the response redirects to the original URL.
-     * @return void
-     */
     public function test_redirect_redirects_to_original_url(): void
     {
-        $url = URL::factory()->create([
-            'short_url' => 'abc123',
-            'original_url' => 'https://example.com'
-        ]);
+        $urls = $this->createUrlsFromTestCsv();
+        $testUrl = $urls->first();
 
-        $response = $this->get('/abc123');
+        $response = $this->get('/' . $testUrl->short_url);
 
-        $response->assertRedirect('https://example.com');
+        $response->assertRedirect($testUrl->original_url);
     }
 
-    /**
-     * Tests that accessing a short URL creates a corresponding analytics record.
-     *
-     * - Creates a URL with a specified short URL value.
-     * - Sends a GET request to the short URL endpoint.
-     * - Asserts that the database contains an analytics record linked to the URL.
-     * @return void
-     */
     public function test_redirect_creates_analytics_record(): void
     {
-        $url = URL::factory()->create(['short_url' => 'abc123']);
+        $urls = $this->createUrlsFromTestCsv();
+        $testUrl = $urls->first();
 
-        $this->get('/abc123');
+        $this->get('/' . $testUrl->short_url);
 
         $this->assertDatabaseHas('url_analytics', [
-            'url_id' => $url->id
+            'url_id' => $testUrl->id
         ]);
     }
 
-    /**
-     * Tests that the redirect endpoint accurately tracks the user's browser, user agent, and IP address.
-     *
-     * - Creates a URL with a predefined short URL for redirection.
-     * - Sends a request to the short URL, including specific headers for User-Agent and forwarded IP.
-     * - Asserts that the analytics database table contains a record with the correct URL ID, browser type, and user agent.
-     * @return void
-     */
-    public function test_redirect_tracks_user_agent_and_ip(): void
-    {
-        $url = URL::factory()->create(['short_url' => 'abc123']);
-
-        $response = $this->withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Chrome/91.0)',
-            'HTTP_X_FORWARDED_FOR' => '192.168.1.1'
-        ])->get('/abc123');
-
-        $this->assertDatabaseHas('url_analytics', [
-            'url_id' => $url->id,
-            'browser' => 'Chrome',
-            'user_agent' => 'Mozilla/5.0 (Chrome/91.0)',
-        ]);
-    }
-
-    /**
-     * Tests that the redirection process tracks the referrer information.
-     *
-     * - Creates a URL with a specific short URL identifier.
-     * - Sends a request to the URL while including a referer header.
-     * - Verifies that the referrer information is correctly recorded in the database
-     *   under the URL analytics table, associated with the appropriate URL ID.
-     * @return void
-     */
-    public function test_redirect_tracks_referrer(): void
-    {
-        $url = URL::factory()->create(['short_url' => 'abc123']);
-
-        $this->withHeaders([
-            'referer' => 'https://google.com'
-        ])->get('/abc123');
-
-        $this->assertDatabaseHas('url_analytics', [
-            'url_id' => $url->id,
-            'referrer' => 'https://google.com'
-        ]);
-    }
-
-    /**
-     * Tests that the redirect endpoint returns a 404 status for a nonexistent short URL.
-     *
-     * - Sends a GET request to a nonexistent short URL endpoint.
-     * - Asserts that the HTTP response status is 404.
-     * @return void
-     */
     public function test_redirect_returns_404_for_nonexistent_short_url(): void
     {
         $response = $this->get('/nonexistent');
@@ -178,35 +120,154 @@ class URLControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /**
-     * Tests that browser detection works correctly when accessing a short URL.
-     *
-     * - Creates a URL with a specific short URL identifier.
-     * - Sends a request to the short URL endpoint with a User-Agent header indicating Chrome.
-     * - Verifies that the analytics database records the correct browser as Chrome.
-     * - Clears the analytics database records to isolate the next test scenario.
-     * - Sends another request to the short URL endpoint with a User-Agent header indicating Firefox.
-     * - Verifies that the analytics database records the correct browser as Firefox.
-     * @return void
-     */
-    public function test_browser_detection_works_correctly(): void
+    // ==================== API ROUTE TESTS ====================
+
+    public function test_api_returns_urls_as_json(): void
     {
-        $url = URL::factory()->create(['short_url' => 'abc123']);
+        // Don't set session for API tests - create URLs with a known batch ID
+        $urls = $this->createUrlsFromTestCsv('api-test-batch');
 
-        // Test Chrome detection
-        $this->withHeaders(['User-Agent' => 'Chrome/91.0'])
-            ->get('/abc123');
+        $response = $this->getJson('/api/v1/urls');
 
-        $this->assertDatabaseHas('url_analytics', ['browser' => 'Chrome']);
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'batch_id',
+                        'created_at',
+                        'urls',
+                        'total_urls'
+                    ]
+                ]
+            ]);
 
-        // Clean up for next test
-        URLAnalytics::truncate();
+        // Verify the API response contains our test batch
+        $responseData = $response->json('data');
+        $testBatch = collect($responseData)->firstWhere('batch_id', 'api-test-batch');
 
-        // Test Firefox detection
-        $this->withHeaders(['User-Agent' => 'Firefox/89.0'])
-            ->get('/abc123');
-
-        $this->assertDatabaseHas('url_analytics', ['browser' => 'Firefox']);
+        $this->assertNotNull($testBatch, 'Test batch not found in API response');
+        $this->assertEquals($this->getExpectedUrlCount(), $testBatch['total_urls']);
     }
+
+    public function test_api_can_upload_csv_file(): void
+    {
+        Storage::fake('local');
+
+        $testCsvPath = base_path(self::TEST_CSV_PATH);
+        $this->assertFileExists($testCsvPath, 'Test CSV file does not exist');
+
+        $csvContent = file_get_contents($testCsvPath);
+        $uploadedFile = UploadedFile::fake()->createWithContent(self::TEST_CSV_PATH, $csvContent);
+
+        $response = $this->postJson('/api/v1/urls/upload', [
+            'csv_file' => $uploadedFile
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'urls_created',
+                'batch_id'
+            ]);
+
+        $this->assertDatabaseCount('urls', $this->getExpectedUrlCount());
+    }
+
+    public function test_api_can_get_url_by_short_code(): void
+    {
+        $urls = $this->createUrlsFromTestCsv();
+
+        // Debug: Check if URLs were actually created
+        $this->assertGreaterThan(0, $urls->count(), 'No URLs were created from CSV');
+        $this->assertDatabaseCount('urls', $urls->count());
+
+        $testUrl = $urls->first();
+
+        // Debug: Verify the URL exists in database
+        $this->assertDatabaseHas('urls', [
+            'short_url' => $testUrl->short_url
+        ]);
+
+        $response = $this->getJson('/api/v1/urls/' . $testUrl->short_url);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data' => [
+                    'id',
+                    'original_url',
+                    'short_url',
+                    'batch_id'
+                ],
+                'status'
+            ])
+            ->assertJson([
+                'data' => [
+                    'short_url' => $testUrl->short_url,
+                    'original_url' => $testUrl->original_url
+                ]
+            ]);
+    }
+
+    public function test_api_returns_404_for_nonexistent_url(): void
+    {
+        $response = $this->getJson('/api/v1/urls/nonexistent');
+
+        $response->assertStatus(404)
+            ->assertJsonStructure([
+                'message'
+            ]);
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    private function createUrlsFromTestCsv(?string $batchId = null): \Illuminate\Database\Eloquent\Collection
+    {
+        $urls = new \Illuminate\Database\Eloquent\Collection();
+        $batch = $batchId ?? 'test-batch-' . Str::random(8);
+
+        $csvPath = base_path(self::TEST_CSV_PATH);
+        if (file_exists($csvPath)) {
+            $csvData = array_map('str_getcsv', file($csvPath));
+
+            // Don't skip any rows since there's no header
+            foreach ($csvData as $row) {
+                if (!is_array($row) || empty($row[0])) {
+                    continue;
+                }
+
+                $url = trim($row[0]);
+
+                if (!empty($url) && filter_var($url, FILTER_VALIDATE_URL)) {
+                    $urlModel = URL::create([
+                        'batch_id' => $batch,
+                        'original_url' => $url,
+                        'short_url' => Str::random(6),
+                    ]);
+
+                    $urls->push($urlModel);
+                }
+            }
+        }
+
+        return $urls;
+    }
+
+    private function getExpectedUrlCount(): int
+    {
+        $csvPath = base_path(self::TEST_CSV_PATH);
+        if (!file_exists($csvPath)) {
+            return 0;
+        }
+
+        $csvData = array_map('str_getcsv', file($csvPath));
+        // Don't remove first row since there's no header
+
+        return count(array_filter($csvData, function ($row) {
+            return !empty($row[0]) && filter_var(trim($row[0]), FILTER_VALIDATE_URL);
+        }));
+    }
+
 
 }

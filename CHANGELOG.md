@@ -1,5 +1,10 @@
 Next Release
 -
+v1.3.0
+* Views
+* Blade Templates
+* Frontend Assets
+* Tailwind CSS
 
 v1.2.0
 * Controllers and Routes

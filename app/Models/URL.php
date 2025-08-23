@@ -39,15 +39,6 @@ class URL extends Model
     }
 
     /**
-     * Retrieve the total clicks count by summing up the 'clicks' column in the analytics data.
-     * @return int
-     */
-    public function getTotalClicksAttribute(): int
-    {
-        return $this->analytics->count();
-    }
-
-    /**
      * Scope a query to filter results by a specific batch ID.
      *
      * @param Builder $query

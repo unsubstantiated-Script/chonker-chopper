@@ -11,6 +11,10 @@ class URLTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Tests that the URL model has the correct fillable attributes.
+     * @return void
+     */
     public function test_it_has_correct_fillable_attributes(): void
     {
         $url = new URL();
@@ -22,6 +26,10 @@ class URLTest extends TestCase
         ], $url->getFillable());
     }
 
+    /**
+     * Tests that the URL model uses the correct table name.
+     * @return void
+     */
     public function test_it_uses_correct_table_name(): void
     {
         $url = new URL();
@@ -29,6 +37,11 @@ class URLTest extends TestCase
         $this->assertEquals('urls', $url->getTable());
     }
 
+    /**
+     * Tests the analytics relationship of the URL model.
+     *
+     * Ensures that a URL model can have multiple related analytics records.
+     */
     public function test_it_has_analytics_relationship(): void
     {
         $url = URL::factory()->create();
@@ -38,22 +51,11 @@ class URLTest extends TestCase
         $this->assertInstanceOf(URLAnalytics::class, $url->analytics->first());
     }
 
-    public function test_it_calculates_total_clicks_correctly(): void
-    {
-        $url = URL::factory()->create();
-        URLAnalytics::factory()->count(5)->create(['url_id' => $url->id]);
-
-        // Since each analytics record represents one click
-        $this->assertEquals(5, $url->total_clicks);
-    }
-
-    public function test_it_returns_zero_clicks_when_no_analytics(): void
-    {
-        $url = URL::factory()->create();
-
-        $this->assertEquals(0, $url->total_clicks);
-    }
-
+    /**
+     * Tests that filtering by batch ID returns the correct number of results
+     * and ensures each result matches the specified batch ID.
+     * @return void
+     */
     public function test_it_can_filter_by_batch_id(): void
     {
         URL::factory()->create(['batch_id' => 'batch-1']);
@@ -68,6 +70,11 @@ class URLTest extends TestCase
         });
     }
 
+    /**
+     * Tests the scope `byBatchId` to ensure it returns an empty collection
+     * when querying with a nonexistent batch ID.
+     * @return void
+     */
     public function test_scope_by_batch_id_returns_empty_collection_for_nonexistent_batch(): void
     {
         URL::factory()->create(['batch_id' => 'batch-1']);

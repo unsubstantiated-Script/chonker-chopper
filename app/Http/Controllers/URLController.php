@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\URL;
 use App\Models\URLAnalytics;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -27,22 +28,66 @@ class URLController extends Controller
      * Store a new URL the newly generated shortened version.
      *
      * @param Request $request
-     * @return RedirectResponse
+     * @return RedirectResponse | JsonResponse
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
 
         // Handle CSV file upload
         if (!$request->hasFile('csv_file')) {
+            // API Response
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please upload a CSV file.'
+                ], 400);
+            }
+
+            // Web Response
             return redirect()->route('urls.upload')->with('error', 'Please upload a CSV file.');
         }
 
-        $this->processCSVFile($request);
+        try {
+            $urlsCreated = $this->processCSVFile($request);
 
-        return redirect()->route('urls.view')->with('success', 'URL shortened successfully!');
+            // API Response
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Successfully shortened {$urlsCreated} URLs from CSV!",
+                    'urls_created' => $urlsCreated,
+                    'batch_id' => $this->getBatchId()
+                ], 201);
+            }
+
+            // Web Response
+            return redirect()->route('urls.view')->with('success', 'URL shortened successfully!');
+
+        } catch (\Exception $e) {
+            // API Error Response
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to process CSV file',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+
+            // Web Error Response
+            return redirect()->route('urls.upload')->with('error', 'Failed to process CSV file');
+        }
     }
 
-    private function processCSVFile(Request $request): RedirectResponse
+    /**
+     * Process a CSV file and create URLs.
+     * @param Request $request
+     * @return int
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
+    private function processCSVFile(Request $request): int
     {
         $request->validate([
             'csv_file' => 'required|file|mimes:csv,txt|max:2048',
@@ -70,16 +115,15 @@ class URLController extends Controller
             $urlsCreated++;
         }
 
-        return redirect()->route('urls.view')->with('success', "Successfully shortened {$urlsCreated} URLs from CSV!");
+        return $urlsCreated;
     }
-
 
     /**
      * Display all URLs grouped by batch.
      *
-     * @return View
+     * @return View|JsonResponse
      */
-    public function index(): View
+    public function index(): View|JsonResponse
     {
         $urlBatches = URL::select('batch_id', 'created_at')
             ->groupBy('batch_id', 'created_at')
@@ -94,15 +138,57 @@ class URLController extends Controller
                 ];
             });
 
+        // API Response
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $urlBatches
+            ]);
+        }
+
+        // Web Response
         return view('urls.index', compact('urlBatches'));
+
+    }
+
+    /**
+     * Display details of a URL using the given short URL.
+     *
+     * @param string $shortUrl
+     * @return JsonResponse
+     */
+    public function show(string $shortUrl): JsonResponse
+    {
+        $url = URL::where('short_url', $shortUrl)->first();
+
+        if (!$url) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Short URL not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $url->id,
+                'batch_id' => $url->batch_id,
+                'original_url' => $url->original_url,
+                'short_url' => $url->short_url,
+                'created_at' => $url->created_at,
+                'updated_at' => $url->updated_at,
+                'click_count' => $url->analytics->count(),
+            ]
+        ]);
+
     }
 
     /**
      * Display analytics for all URLs grouped by batch.
      *
-     * @return View
+     * @return View|JsonResponse
      */
-    public function analytics(): View
+    public function analytics(): View|JsonResponse
     {
         $analyticsBatches = URL::select('batch_id', 'created_at')
             ->groupBy('batch_id', 'created_at')
@@ -123,7 +209,46 @@ class URLController extends Controller
                 ];
             });
 
+        // API Response
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $analyticsBatches
+            ]);
+        }
+
         return view('urls.analytics', compact('analyticsBatches'));
+    }
+
+    /**
+     * Display analytics for a specific short URL.
+     * @param string $shortUrl
+     * @return JsonResponse
+     */
+    public function urlAnalytics(string $shortUrl): JsonResponse
+    {
+        $url = URL::where('short_url', $shortUrl)
+            ->with('analytics')
+            ->first();
+
+        if (!$url) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Short URL not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'url' => [
+                    'short_url' => $url->short_url,
+                    'original_url' => $url->original_url,
+                ],
+                'total_clicks' => $url->analytics->count(),
+                'analytics' => $url->analytics
+            ]
+        ]);
     }
 
     /**
@@ -135,6 +260,12 @@ class URLController extends Controller
      */
     private function getBatchId(): string
     {
+        // For API requests, generate a new batch ID each time
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return Str::uuid()->toString();
+        }
+
+        // For web requests, use session-based batch ID
         if (!session()->has('batch_id')) {
             session()->put('batch_id', Str::uuid()->toString());
         }

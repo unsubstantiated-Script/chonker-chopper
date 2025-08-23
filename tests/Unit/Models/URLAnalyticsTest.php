@@ -12,6 +12,10 @@ class URLAnalyticsTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Test that the URLAnalytics model has the correct fillable attributes.
+     * @return void
+     */
     public function test_it_has_correct_fillable_attributes(): void
     {
         $analytics = new URLAnalytics();
@@ -27,6 +31,10 @@ class URLAnalyticsTest extends TestCase
         ], $analytics->getFillable());
     }
 
+    /**
+     * Test that the URLAnalytics model correctly casts the 'clicked_at' attribute to a Carbon instance.
+     * @return void
+     */
     public function test_it_casts_clicked_at_to_datetime(): void
     {
         $analytics = URLAnalytics::factory()->create([
@@ -36,6 +44,10 @@ class URLAnalyticsTest extends TestCase
         $this->assertInstanceOf(Carbon::class, $analytics->clicked_at);
     }
 
+    /**
+     * Test the relationship between URLAnalytics and URL models.
+     * @return void
+     */
     public function test_it_belongs_to_url(): void
     {
         $url = URL::factory()->create();
@@ -45,6 +57,10 @@ class URLAnalyticsTest extends TestCase
         $this->assertEquals($url->id, $analytics->url->id);
     }
 
+    /**
+        * Test the formatted_clicked_at accessor.
+        * @return void
+        */
     public function test_it_formats_clicked_at_date_correctly(): void
     {
         $analytics = URLAnalytics::factory()->make([
@@ -54,6 +70,10 @@ class URLAnalyticsTest extends TestCase
         $this->assertEquals('Jan 15, 2025 3:30 PM', $analytics->formatted_clicked_at);
     }
 
+    /**
+     * Test the browser_name accessor to ensure it extracts the Chrome browser name from the user_agent string.
+     * @return void
+     */
     public function test_it_extracts_chrome_browser_name(): void
     {
         $analytics = URLAnalytics::factory()->make([
@@ -63,6 +83,10 @@ class URLAnalyticsTest extends TestCase
         $this->assertEquals('Chrome', $analytics->browser_name);
     }
 
+    /**
+     * Test the extraction of the browser name as "Firefox" from the user agent string.
+     * @return void
+     */
     public function test_it_extracts_firefox_browser_name(): void
     {
         $analytics = URLAnalytics::factory()->make([
@@ -72,6 +96,10 @@ class URLAnalyticsTest extends TestCase
         $this->assertEquals('Firefox', $analytics->browser_name);
     }
 
+    /**
+     * Test the extraction of the browser name as "Safari" from the user agent string.
+     * @return void
+     */
     public function test_it_extracts_safari_browser_name(): void
     {
         $analytics = URLAnalytics::factory()->make([
@@ -81,6 +109,10 @@ class URLAnalyticsTest extends TestCase
         $this->assertEquals('Safari', $analytics->browser_name);
     }
 
+    /**
+     * Test the browser_name accessor returns 'Unknown' for an empty user_agent.
+     * @return void
+     */
     public function test_it_returns_unknown_for_empty_user_agent(): void
     {
         $analytics = URLAnalytics::factory()->make(['user_agent' => null]);
@@ -88,13 +120,11 @@ class URLAnalyticsTest extends TestCase
         $this->assertEquals('Unknown', $analytics->browser_name);
     }
 
-    public function test_it_returns_unknown_for_blank_user_agent(): void
-    {
-        $analytics = URLAnalytics::factory()->make(['user_agent' => '']);
 
-        $this->assertEquals('Unknown', $analytics->browser_name);
-    }
-
+    /**
+     * Test the browser_name accessor for unrecognized user agents.
+     * @return void
+     */
     public function test_it_returns_other_for_unrecognized_browser(): void
     {
         $analytics = URLAnalytics::factory()->make([

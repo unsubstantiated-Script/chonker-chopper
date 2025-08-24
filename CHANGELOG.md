@@ -1,6 +1,11 @@
 Next Release
 -
 
+v1.5.0
+* Cleanup and refactoring
+* Bash script to setup the project in Linux
+* Updated README with setup instructions
+
 v1.4.0
 * API Endpoints
 * Updated Controller to handle API requests and Web routes.

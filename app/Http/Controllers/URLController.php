@@ -233,6 +233,8 @@ class URLController extends Controller
         ]);
     }
 
+    private string $currentBatchId;
+
     /**
      * Get or create batch ID for the session.
      *
@@ -242,9 +244,12 @@ class URLController extends Controller
      */
     private function getBatchId(): string
     {
-        // For API requests, generate a new batch ID each time
+        // For API requests, generate one batch ID per request and reuse it
         if (request()->expectsJson() || request()->is('api/*')) {
-            return Str::uuid()->toString();
+            if (!isset($this->currentBatchId)) {
+                $this->currentBatchId = Str::uuid()->toString();
+            }
+            return $this->currentBatchId;
         }
 
         // For web requests, use session-based batch ID

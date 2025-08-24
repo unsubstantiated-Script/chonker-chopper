@@ -1,6 +1,20 @@
-# Chonker-Chopper
+<h1 align="center">Chonker-Chopper</h1>
 
-A Laravel application with Docker Sail integration for development.
+<div align="center">
+  <img src="public/images/logo.png" alt="Chonker-Chopper Logo" width="600" height="600">
+</div>
+
+
+A Laravel application with Docker Sail integration for development. 
+This project includes an API with a handful of endpoints for uploading CSVs of long URLs to shorten them. Other endpoints provide data for client analysis and output.
+It also has a full MVC website for uploading CSV files containing URLs to be shortened, along with an API for managing and retrieving shortened URLs and their analytics.
+Finally, it includes a small suite of Unit and Feature tests to ensure the core functionality works as expected.
+I've pushed up this project to GitHub as a public repo for anyone to use, modify, and learn from. This also will give you insight into my coding style, git habits, and other practices.
+
+If you happen to be a Linux user, I've included a small script `sail-fixs.sh` to help with some common permission issues that can arise when using Sail on Linux systems. Just run it before starting Sail for the first time. 
+Further instructions are provided below.
+
+Note: This project is for educational purposes only and is not intended for production use.
 
 ## Prerequisites
 - PHP 8.2+
@@ -37,25 +51,55 @@ php artisan key:generate
 ```
 - Update `.env` file with your database credentials
 
-### 4. Start Laravel Sail
+### 4a. Start Laravel Sail (MAC/Windows)
 ```bash
+./vendor/bin/sail build --no-cache
 ./vendor/bin/sail up -d
 ```
+> **Important Note:**
+> If you encounter port issues with 3306 and/or 80 you can either:
+> 1. Change the port in your `.env` file to an available port:
+> ```dotenv
+> DB_PORT=3307
+> FORWARD_DB_PORT=3307
+> APP_PORT=8080
+> FORWARD_APP_PORT=8080
+>```
+> Or...
+>
+> 2. Stop any services using those ports (e.g., MySQL and/or Apache2)
+> ```bash
+> sudo systemctl stop mysql
+> sudo systemctl stop apache2
+> ```
 
-### 5. Database Migration
+### 4b. Start Laravel Sail (Linux)
+```bash
+./sail-fixs.sh
+./vendor/bin/sail up -d
+sudo chmod -R 777 storage bootstrap/cache
+```
+
+
+### 5. Database Migration (Wait a moment to run this one)
 ```bash
 ./vendor/bin/sail artisan migrate
 ```
 
-### 6. Install Node Packages
+### 6a. Install/Run Node Packages for Frontend (MAC/Windows)
 ```bash
 ./vendor/bin/sail npm install
-```
-
-### 7. Start Development Server
-```bash
+# Then start the dev server
 ./vendor/bin/sail npm run dev
 ```
+
+### 6a. Install/Run Node Packages for Frontend (Linux)
+```bash
+./vendor/bin/sail exec -u root laravel.test npm install
+# Then start the dev server
+./vendor/bin/sail exec -u root laravel.test npm run dev
+```
+
 
 ## Development URLs
 - **Application**: http://localhost
@@ -101,10 +145,17 @@ php artisan key:generate
 ```
 
 ### Frontend Commands
+Normies
 ```bash
 ./vendor/bin/sail npm run dev    # Development server
 ./vendor/bin/sail npm run build  # Production build
 ./vendor/bin/sail npm run watch  # Watch for changes
+```
+Linux User in the Docker Shell
+```bash
+./vendor/bin/sail exec -u root laravel.test npm run dev
+./vendor/bin/sail exec -u root laravel.test npm run build
+./vendor/bin/sail exec -u root laravel.test npm run watch
 ```
 
 ### Testing

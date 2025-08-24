@@ -1,0 +1,126 @@
+{
+	"info": {
+		"_postman_id": "e6c3eecb-5f8f-4741-aff2-fe722039baa2",
+		"name": "Chonker Chopper API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12233597"
+	},
+	"item": [
+		{
+			"name": "Get All Analytics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost/api/v1/urls/analytics",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"path": [
+						"api",
+						"v1",
+						"urls",
+						"analytics"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Upload CSV",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "csv_file",
+							"type": "file",
+							"src": "/home/skripty/PhpstormProjects/chonker-chopper/urls_2_test.csv"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost/api/v1/urls/upload",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"path": [
+						"api",
+						"v1",
+						"urls",
+						"upload"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get One Short Code's Analytics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost/api/v1/urls/8irdSL/analytics",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"path": [
+						"api",
+						"v1",
+						"urls",
+						"8irdSL",
+						"analytics"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get One Short Code's Data",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost/api/v1/urls/8irdSL",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"path": [
+						"api",
+						"v1",
+						"urls",
+						"8irdSL"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All URL Data in Batches",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost/api/v1/urls/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"path": [
+						"api",
+						"v1",
+						"urls",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

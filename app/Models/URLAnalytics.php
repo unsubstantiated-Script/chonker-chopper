@@ -50,41 +50,4 @@ class URLAnalytics extends Model
         return $this->belongsTo(URL::class);
     }
 
-
-    /**
-     * Get formatted clicked_at time.
-     * @return string
-     */
-    public function getFormattedClickedAtAttribute(): string
-    {
-        return $this->clicked_at->format('M j, Y g:i A');
-    }
-
-    /**
-     * Extract browser name from user agent.
-     * @return string
-     */
-    public function getBrowserNameAttribute(): string
-    {
-        if (empty($this->user_agent)) {
-            return 'Unknown';
-        }
-
-        $browsers = [
-            'Chrome' => '/Chrome/i',
-            'Firefox' => '/Firefox/i',
-            'Safari' => '/Safari/i',
-            'Edge' => '/Edge/i',
-            'Opera' => '/Opera/i',
-            'Internet Explorer' => '/Trident/i',
-        ];
-
-        foreach ($browsers as $browser => $pattern) {
-            if (preg_match($pattern, $this->user_agent)) {
-                return $browser;
-            }
-        }
-
-        return 'Other';
-    }
 }

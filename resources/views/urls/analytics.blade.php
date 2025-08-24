@@ -26,7 +26,7 @@
                                 </h2>
                                 <div class="flex flex-wrap gap-2 sm:space-x-4 sm:gap-0">
                                     <span class="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
-                                        {{ $batch['total_clicks'] }} Total Clicks
+                                        {{ $batch['total_clicks'] }} Total {{ Str::plural('Click', $batch['total_clicks']) }}
                                     </span>
                                     <span class="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
                                         {{ $batch['total_urls'] }} URLs
@@ -64,7 +64,7 @@
                                                     </div>
                                                     <div class="ml-0 sm:ml-4 w-full sm:w-auto">
                                                         <span class="inline-flex items-center justify-center w-full sm:w-auto px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
-                                                            {{ $url->analytics->count() }} clicks
+                                                            {{ $url->analytics->count() }} {{ Str::plural('click', $url->analytics->count()) }}
                                                         </span>
                                                     </div>
                                                 </div>

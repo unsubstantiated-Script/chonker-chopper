@@ -1,6 +1,7 @@
 Next Release
 -
 
+v1.4.0
 * API Endpoints
 * Updated Controller to handle API requests and Web routes.
 * Updated Controller Tests to include API tests.

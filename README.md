@@ -160,7 +160,9 @@ Linux User in the Docker Shell
 
 ### Testing
 ```bash
-./vendor/bin/sail artisan test --testsuite Unit
+./vendor/bin/sail artisan test # Run all tests
+./vendor/bin/sail artisan test --testsuite Unit # Run unit tests
+./vendor/bin/sail artisan test --testsuite Feature # Run feature tests
 ```
 
 ## Database Configuration
